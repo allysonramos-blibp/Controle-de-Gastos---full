@@ -7,13 +7,6 @@ Sistema fullstack para gerenciamento de finanças pessoais, desenvolvido com Jav
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-## 📸 Screenshots
-
-![Dashboard](https://via.placeholder.com/800x400?text=Dashboard+Screenshot)
-*Dashboard com visão geral das finanças*
-
-![Transações](https://via.placeholder.com/800x400?text=Transações+Screenshot)
-*Lista de transações com filtros*
 
 ## 🎯 Funcionalidades
 
