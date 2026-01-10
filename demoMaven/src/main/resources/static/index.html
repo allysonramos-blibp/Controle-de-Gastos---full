@@ -147,8 +147,12 @@
     // --- 1. VERIFICAÇÃO DE SEGURANÇA (COMENTADA PARA TESTE) ---
     const token = localStorage.getItem('token');
 
-    const IP_SERVIDOR = '192.168.100.161';
-    const API = `http://${IP_SERVIDOR}:8080/api/transacoes`;
+    // Substitua o IP fixo por essa lógica:
+const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+    ? "http://localhost:8080" 
+    : "https://SUA-URL-DO-RENDER.onrender.com";
+
+const API = `${API_BASE}/api/transacoes`;
 
     const getHeaders = () => ({
         'Content-Type': 'application/json'
@@ -328,4 +332,5 @@
     init();
 </script>
 </body>
+
 </html>
