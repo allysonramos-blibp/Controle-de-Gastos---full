@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso - Meu Controle</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #10b981;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .auth-container {
+            background: #ffffff;
+            width: 90%;
+            max-width: 400px;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #94a3b8;
+            transition: 0.3s;
+        }
+        .tab.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+        h2 { color: #1e293b; margin-top: 0; text-align: center; font-size: 1.5rem; }
+        .form-group { display: flex; flex-direction: column; gap: 15px; }
+        input {
+            padding: 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+        }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            color: white;
+        }
+        .btn-login { background: var(--primary); }
+        .btn-cadastrar { background: var(--success); }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        .hidden { display: none; }
+        #message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.9rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <div class="tabs">
+        <div id="tLogin" class="tab active" onclick="showForm('login')">Entrar</div>
+        <div id="tCad" class="tab" onclick="showForm('cad')">Criar Conta</div>
+    </div>
+
+    <div id="boxLogin">
+        <h2>Bem-vindo!</h2>
+        <form id="formLogin" class="form-group">
+            <input type="email" id="emailL" placeholder="E-mail" required>
+            <input type="password" id="senhaL" placeholder="Senha" required>
+            <button type="submit" class="btn-login">Acessar Sistema</button>
+        </form>
+    </div>
+
+    <div id="boxCad" class="hidden">
+        <h2>Nova Conta</h2>
+        <form id="formCad" class="form-group">
+            <input type="text" id="nomeC" placeholder="Nome Completo" required>
+            <input type="email" id="emailC" placeholder="Seu melhor e-mail" required>
+            <input type="password" id="senhaC" placeholder="Crie uma senha" required>
+            <button type="submit" class="btn-cadastrar">Finalizar Cadastro</button>
+        </form>
+    </div>
+
+    <div id="message"></div>
+</div>
+
+<script>
+    const API = "http://192.168.100.161:8080/api/auth";
+
+    function showForm(type) {
+        const isLogin = type === 'login';
+        document.getElementById('boxLogin').classList.toggle('hidden', !isLogin);
+        document.getElementById('boxCad').classList.toggle('hidden', isLogin);
+        document.getElementById('tLogin').classList.toggle('active', isLogin);
+        document.getElementById('tCad').classList.toggle('active', !isLogin);
+        hideMsg();
+    }
+
+    function showMsg(text, isError) {
+        const msg = document.getElementById('message');
+        msg.innerText = text;
+        msg.style.display = 'block';
+        msg.style.backgroundColor = isError ? '#fee2e2' : '#dcfce7';
+        msg.style.color = isError ? '#991b1b' : '#166534';
+    }
+
+    function hideMsg() { document.getElementById('message').style.display = 'none'; }
+
+    // LOGIN ATUALIZADO
+    document.getElementById('formLogin').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch(`${API}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('emailL').value,
+                    senha: document.getElementById('senhaL').value
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+
+                // GRAVAÇÃO IMEDIATA
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('usuario_nome', data.nome);
+
+                console.log("DEBUG: Token gravado no login:", data.token);
+
+                showMsg("Sucesso! Entrando...", false);
+
+                // Aguarda um pouco para o navegador processar a gravação
+                setTimeout(() => {
+                    window.location.replace('index.html');
+                }, 300);
+            } else {
+                showMsg("E-mail ou senha incorretos!", true);
+            }
+        } catch (err) { showMsg("Erro ao conectar com o servidor.", true); }
+    };
+
+    // CADASTRO
+    document.getElementById('formCad').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch(`${API}/cadastrar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nome: document.getElementById('nomeC').value,
+                    email: document.getElementById('emailC').value,
+                    senha: document.getElementById('senhaC').value
+                })
+            });
+
+            if (res.ok) {
+                showMsg("Conta criada! Redirecionando...", false);
+                setTimeout(() => showForm('login'), 2000);
+            } else {
+                const txt = await res.text();
+                showMsg(txt, true);
+            }
+        } catch (err) { showMsg("Erro ao realizar cadastro.", true); }
+    };
+</script>
+</body>
+</html>

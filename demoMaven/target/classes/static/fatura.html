@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faturas do Cartão</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        input, select, button {
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            font-size: 1em;
+            transition: border 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        button.pagar {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        button.pagar:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-info {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .status-info p {
+            margin: 5px 0;
+            font-size: 1.1em;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .status-badge.aberta {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-badge.paga {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .linha {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .linha:last-child {
+            border-bottom: none;
+        }
+
+        .descricao {
+            flex: 1;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .valor {
+            color: #ef4444;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .total {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 3px solid #667eea;
+            color: #667eea;
+            text-align: right;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 1.1em;
+        }
+
+        .pagamento-section {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .pagamento-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 2px solid #f59e0b;
+        }
+
+        .btn-voltar {
+            background: #6b7280;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .btn-voltar:hover {
+            background: #4b5563;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <h1>🧾 Faturas do Cartão</h1>
+
+    <a href="index.html" class="btn-voltar">← Voltar</a>
+
+    <!-- BUSCAR FATURA -->
+    <div class="card">
+        <h2>Buscar Fatura</h2>
+
+        <div class="grid">
+            <input type="number" id="mes" placeholder="Mês (1-12)" min="1" max="12">
+            <input type="number" id="ano" placeholder="Ano" min="2020" max="2030">
+            <button onclick="buscarFatura()">🔍 Buscar</button>
+        </div>
+    </div>
+
+    <!-- EXIBIR FATURA -->
+    <div class="card" id="faturaCard" style="display: none;">
+        <h2>Detalhes da Fatura</h2>
+
+        <div id="alertArea"></div>
+
+        <div class="status-info" id="status"></div>
+
+        <div id="lista"></div>
+
+        <div class="total" id="total"></div>
+
+        <!-- PAGAMENTO -->
+        <div class="pagamento-section" id="pagamentoSection" style="display: none;">
+            <h3>💳 Pagar Fatura</h3>
+            <div class="grid">
+                <select id="formaPagamento">
+                    <option value="">Como vai pagar?</option>
+                    <option value="PIX">PIX</option>
+                    <option value="TRANSFERENCIA">Transferência</option>
+                    <option value="DINHEIRO">Dinheiro</option>
+                    <option value="CARTAO_DEBITO">Cartão de Débito</option>
+                </select>
+                <button class="pagar" onclick="pagarFatura()">✅ Confirmar Pagamento</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const API_TRANSACOES = "http://localhost:8080/api/transacoes";
+    const API_FATURAS = "http://localhost:8080/api/faturas";
+    // Troque localhost pelo seu IP
+    const API = 'http:// 192.168.100.161:8080/api/transacoes';
+
+    let faturaAtual = null;
+
+    // Definir mês e ano atual por padrão
+    document.addEventListener('DOMContentLoaded', function() {
+        const hoje = new Date();
+        document.getElementById('mes').value = hoje.getMonth() + 1;
+        document.getElementById('ano').value = hoje.getFullYear();
+    });
+
+    async function buscarFatura() {
+        const m = Number(document.getElementById('mes').value);
+        const a = Number(document.getElementById('ano').value);
+
+        if (!m || !a || m < 1 || m > 12) {
+            alert("⚠️ Informe um mês válido (1-12) e ano!");
+            return;
+        }
+
+        try {
+            // Limpar área
+            document.getElementById('alertArea').innerHTML = '';
+            document.getElementById('lista').innerHTML = '<p class="empty-state">Carregando...</p>';
+            document.getElementById('faturaCard').style.display = 'block';
+
+            // Buscar ou criar fatura
+            // ... dentro da função buscarFatura()
+            const fatura = await fetch(`${API_FATURAS}/buscar?mes=${m}&ano=${a}`)
+                .then(r => r.json());
+
+            faturaAtual = fatura;
+
+            // Exibir status
+            const statusClass = fatura.status === 'PAGA' ? 'paga' : 'aberta';
+            document.getElementById('status').innerHTML = `
+                <p><strong>Referência:</strong> ${String(m).padStart(2,'0')}/${a}</p>
+                <p><strong>Status:</strong> <span class="status-badge ${statusClass}">${fatura.status}</span></p>
+            `;
+
+            // Buscar transações do cartão
+            const transacoes = await fetch(API_TRANSACOES).then(r => r.json());
+
+            const comprasCartao = transacoes.filter(t => {
+                if (t.tipoPagamento !== "CARTAO_CREDITO") return false;
+
+                const data = new Date(t.data + 'T00:00:00');
+                const mesTransacao = data.getMonth() + 1;
+                const anoTransacao = data.getFullYear();
+
+                return mesTransacao === m && anoTransacao === a;
+            });
+
+            // Exibir lista
+            if (comprasCartao.length === 0) {
+                document.getElementById('lista').innerHTML =
+                    '<div class="empty-state">📭 Nenhuma compra no cartão neste período</div>';
+                document.getElementById('total').innerHTML = 'Total da fatura: <span style="color: #10b981;">R$ 0,00</span>';
+                document.getElementById('pagamentoSection').style.display = 'none';
+                return;
+            }
+
+            let listaHTML = '';
+            comprasCartao.forEach(t => {
+                listaHTML += `
+                    <div class="linha">
+                        <span class="descricao">${t.descricao}</span>
+                        <span class="valor">R$ ${t.valor.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('lista').innerHTML = listaHTML;
+            document.getElementById('total').innerHTML =
+                `Total da fatura: R$ ${Number(fatura.total || 0).toFixed(2)}`;
+
+            // Mostrar/ocultar seção de pagamento
+            if (fatura.status === 'PAGA') {
+                document.getElementById('pagamentoSection').style.display = 'none';
+                document.getElementById('alertArea').innerHTML = `
+                    <div class="alert alert-success">
+                        ✅ Esta fatura já foi paga!
+                    </div>
+                `;
+            } else {
+                document.getElementById('pagamentoSection').style.display = 'block';
+                document.getElementById('formaPagamento').value = '';
+            }
+
+        } catch (error) {
+            alert('❌ Erro ao buscar fatura: ' + error);
+            console.error(error);
+        }
+    }
+
+    async function pagarFatura() {
+        if (!faturaAtual) {
+            alert("⚠️ Busque uma fatura primeiro!");
+            return;
+        }
+
+        if (faturaAtual.status === "PAGA") {
+            alert("✅ Esta fatura já está paga!");
+            return;
+        }
+
+        const tipoPagamento = document.getElementById('formaPagamento').value;
+
+        if (!tipoPagamento) {
+            alert("⚠️ Selecione a forma de pagamento!");
+            return;
+        }
+
+        const valorFatura = Number(faturaAtual.total || 0);
+
+        if (valorFatura === 0) {
+            alert("⚠️ Não há valor a pagar!");
+            return;
+        }
+
+        if (!confirm(`💳 Confirmar pagamento de R$ ${valorFatura.toFixed(2)} via ${tipoPagamento}?`)) {
+            return;
+        }
+
+        try {
+            await fetch(
+                `${API_FATURAS}/${faturaAtual.id}/pagar?tipoPagamento=${tipoPagamento}`,
+                { method: "POST" }
+            );
+
+            document.getElementById('alertArea').innerHTML = `
+                <div class="alert alert-success">
+                    ✅ Fatura paga com sucesso!<br>
+                    Uma despesa de R$ ${valorFatura.toFixed(2)} foi registrada no sistema.
+                </div>
+            `;
+
+            // Recarregar fatura
+            setTimeout(() => {
+                buscarFatura();
+            }, 2000);
+
+        } catch (error) {
+            alert("❌ Erro ao pagar fatura: " + error);
+            console.error(error);
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,18 +1,15 @@
 package com.allyson.controlegastos.service;
 
-import com.allyson.controlegastos.model.Categoria;
-import com.allyson.controlegastos.model.TipoTransacao;
-import com.allyson.controlegastos.model.Transacao;
+import com.allyson.controlegastos.model.*;
+import com.allyson.controlegastos.repository.FaturaRepository;
 import com.allyson.controlegastos.repository.TransacaoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
-import com.allyson.controlegastos.dto.RelatorioCategoriaDTO;
-import java.util.*;
-import java.util.stream.Collectors;
-
 
 @Service
 public class TransacaoService {
@@ -20,85 +17,94 @@ public class TransacaoService {
     @Autowired
     private TransacaoRepository repository;
 
+    @Autowired
+    private FaturaRepository faturaRepository;
+
     public Transacao salvar(Transacao transacao) {
-        return repository.save(transacao);
+
+        if (transacao.getTotalParcelas() != null && transacao.getTotalParcelas() > 1) {
+            salvarParcelada(transacao);
+            return transacao;
+        }
+
+        Transacao salva = repository.save(transacao);
+        atualizarFatura(salva);
+        return salva;
     }
+
+    private void salvarParcelada(Transacao base) {
+
+        BigDecimal valorParcela = base.getValor()
+                .divide(BigDecimal.valueOf(base.getTotalParcelas()), 2, RoundingMode.HALF_UP);
+
+        for (int i = 1; i <= base.getTotalParcelas(); i++) {
+
+            Transacao parcela = new Transacao();
+            parcela.setDescricao(base.getDescricao() + " (" + i + "/" + base.getTotalParcelas() + ")");
+            parcela.setValor(valorParcela);
+            parcela.setCategoria(base.getCategoria());
+            parcela.setTipo(TipoTransacao.DESPESA);
+            parcela.setTipoPagamento(TipoPagamento.CARTAO_CREDITO);
+            parcela.setParcelaAtual(i);
+            parcela.setTotalParcelas(base.getTotalParcelas());
+            parcela.setData(base.getData().plusMonths(i - 1));
+
+            repository.save(parcela);
+            atualizarFatura(parcela);
+        }
+    }
+
+    private void atualizarFatura(Transacao transacao) {
+
+        if (transacao.getTipoPagamento() != TipoPagamento.CARTAO_CREDITO) return;
+
+        int mes = transacao.getData().getMonthValue();
+        int ano = transacao.getData().getYear();
+
+        Fatura fatura = faturaRepository
+                .findByMesAndAno(mes, ano)
+                .orElseGet(() -> {
+                    Fatura f = new Fatura();
+                    f.setMes(mes);
+                    f.setAno(ano);
+                    f.setStatus(StatusFatura.ABERTA);
+                    f.setTotal(BigDecimal.ZERO);
+                    return faturaRepository.save(f);
+                });
+
+        fatura.setTotal(fatura.getTotal().add(transacao.getValor()));
+        faturaRepository.save(fatura);
+    }
+
+    /* CRUD */
 
     public List<Transacao> listarTodas() {
         return repository.findAll();
     }
 
-    public List<Transacao> listarPorTipo(TipoTransacao tipo) {
-        return repository.findByTipo(tipo);
+    public Transacao buscarPorId(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Transação não encontrada: " + id));
     }
+    public Transacao atualizar(Long id, Transacao nova) {
 
-    public List<Transacao> listarPorPeriodo(LocalDate inicio, LocalDate fim) {
-        return repository.findByDataBetween(inicio, fim);
-    }
+        Transacao existente = buscarPorId(id);
 
-    public BigDecimal calcularSaldo() {
-        List<Transacao> todasTransacoes = repository.findAll();
+        existente.setDescricao(nova.getDescricao());
+        existente.setValor(nova.getValor());
+        existente.setData(nova.getData());
+        existente.setCategoria(nova.getCategoria());
+        existente.setTipo(nova.getTipo());
+        existente.setTipoPagamento(nova.getTipoPagamento());
 
-        BigDecimal totalReceitas = todasTransacoes.stream()
-                .filter(t -> t.getTipo() == TipoTransacao.RECEITA)
-                .map(Transacao::getValor)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalDespesas = todasTransacoes.stream()
-                .filter(t -> t.getTipo() == TipoTransacao.DESPESA)
-                .map(Transacao::getValor)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return totalReceitas.subtract(totalDespesas);
+        return repository.save(existente);
     }
 
     public void deletar(Long id) {
         repository.deleteById(id);
     }
 
-    public Transacao atualizar(Long id, Transacao transacaoAtualizada) {
-        // Busca a transação existente no banco
-        Transacao transacaoExistente = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transação não encontrada com ID: " + id));
-
-        // Atualiza os campos
-        transacaoExistente.setDescricao(transacaoAtualizada.getDescricao());
-        transacaoExistente.setValor(transacaoAtualizada.getValor());
-        transacaoExistente.setData(transacaoAtualizada.getData());
-        transacaoExistente.setCategoria(transacaoAtualizada.getCategoria());
-        transacaoExistente.setTipo(transacaoAtualizada.getTipo());
-
-        // Salva de volta no banco
-        return repository.save(transacaoExistente);
-    }
-
-    public Transacao buscarPorId(Long id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transação não encontrada com ID: " + id));
-    }
-
-    public List<RelatorioCategoriaDTO> relatorioPorCategoria() {
-        List<Transacao> todasTransacoes = repository.findAll();
-
-        Map<Categoria, List<Transacao>> agrupadas = todasTransacoes.stream()
-                .filter(t -> t.getCategoria() != null)
-                .collect(Collectors.groupingBy(Transacao::getCategoria));
-
-        List<RelatorioCategoriaDTO> relatorio = new ArrayList<>();
-
-        for (Map.Entry<Categoria, List<Transacao>> entry : agrupadas.entrySet()) {
-            Categoria categoria = entry.getKey();
-            List<Transacao> transacoes = entry.getValue();
-
-            BigDecimal total = transacoes.stream()
-                    .map(Transacao::getValor)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            Long quantidade = (long) transacoes.size();
-
-            relatorio.add(new RelatorioCategoriaDTO(categoria, total, quantidade));
-        }
-
-        return relatorio;
+    public List<Transacao> listarPorFatura(int mes, int ano) {
+        return repository.findByMesFaturaAndAnoFatura(mes, ano);
     }
 }

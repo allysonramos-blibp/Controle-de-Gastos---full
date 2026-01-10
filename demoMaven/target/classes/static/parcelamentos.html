@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Parcelamentos</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6fa; padding: 30px; }
+    .container { max-width: 800px; margin: auto; }
+    .card { background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 5px 15px rgba(0,0,0,.1); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+    input, button { padding: 12px; border-radius: 8px; border: 1px solid #ddd; width: 100%; font-size: 14px; }
+    button { background: #6c63ff; color: white; font-weight: bold; cursor: pointer; border: none; transition: 0.3s; }
+    button:hover { background: #5a52e0; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .parcela { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
+    .valor { color: #ef4444; font-weight: bold; }
+    .mes-ref { font-size: .85em; color: #666; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>💳 Compra Parcelada</h1>
+  <div class="card">
+    <h2>Nova Compra no Cartão</h2>
+    <div class="grid">
+      <input id="descricao" placeholder="Descrição (ex: TV)">
+      <input type="number" id="valorTotal" placeholder="Valor Total">
+      <input type="number" id="parcelas" placeholder="Qtd Parcelas">
+      <input type="number" id="mesInicio" placeholder="Mês (1-12)">
+      <input type="number" id="anoInicio" placeholder="Ano">
+    </div>
+    <br>
+    <button id="btnGerar" onclick="processarParcelas()">Gerar e Salvar no Banco</button>
+  </div>
+  <div class="card">
+    <h2>Parcelas Enviadas</h2>
+    <div id="lista"></div>
+  </div>
+</div>
+
+<script>
+  const API = "http://localhost:8080/api/transacoes";
+  const API = 'http:// 192.168.100.161:8080/api/transacoes';
+
+  async function processarParcelas() {
+    const btn = document.getElementById('btnGerar');
+    const lista = document.getElementById('lista');
+
+    const desc = document.getElementById('descricao').value;
+    const total = parseFloat(document.getElementById('valorTotal').value);
+    const qtd = parseInt(document.getElementById('parcelas').value);
+    let mes = parseInt(document.getElementById('mesInicio').value);
+    let ano = parseInt(document.getElementById('anoInicio').value);
+
+    if (!desc || isNaN(total) || isNaN(qtd) || isNaN(mes) || isNaN(ano)) {
+      alert("Preencha todos os campos corretamente.");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Salvando...";
+    lista.innerHTML = "";
+
+    // Lógica de centavos: Garante que a soma das parcelas bata com o total
+    const valorParcelaBase = Math.floor((total / qtd) * 100) / 100;
+    const resto = parseFloat((total - (valorParcelaBase * qtd)).toFixed(2));
+
+    try {
+      for (let i = 1; i <= qtd; i++) {
+        // Adiciona o resto na última parcela
+        const valorFinal = (i === qtd) ? (valorParcelaBase + resto) : valorParcelaBase;
+        const dataIso = `${ano}-${String(mes).padStart(2, '0')}-01`;
+
+        const payload = {
+          descricao: `${desc} (${i}/${qtd})`,
+          valor: valorFinal,
+          data: dataIso,
+          tipo: "DESPESA",
+          tipoPagamento: "CARTAO_CREDITO",
+          categoria: "OUTROS",
+          parcelaAtual: i,
+          totalParcelas: qtd
+        };
+
+        const resp = await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) throw new Error("Falha ao salvar parcela " + i);
+
+        lista.innerHTML += `
+                    <div class="parcela">
+                        <div><b>${payload.descricao}</b><br><span class="mes-ref">${mes}/${ano}</span></div>
+                        <div class="valor">R$ ${valorFinal.toFixed(2)}</div>
+                    </div>
+                `;
+
+        if (++mes > 12) { mes = 1; ano++; }
+      }
+      alert("✅ Parcelamento concluído!");
+    } catch (e) {
+      alert("❌ Erro: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "Gerar e Salvar no Banco";
+    }
+  }
+</script>
+</body>
+</html>
